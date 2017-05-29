@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+# licenses removed for brevity
+#
+# @Authors: Reid Stuberg, Ryan Glaser, Jon Chac
+#
+# Information for sensor_msgs
+# http://docs.ros.org/kinetic/api/sensor_msgs/html/msg/Imu.html
+
+import rospy
+from sensor_msgs.msg import Imu
+import FaBo9Axis_MPU9250
+import math
+from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Quaternion
+
+mpu9250 = FaBo9Axis_MPU9250.MPU9250()
+deg_to_rad = 0.0174533
+def talker():
+    
+    pub = rospy.Publisher('Imu', Imu, queue_size=10)
+    rospy.init_node('talker')
+    rate = rospy.Rate(50)
+    msg = Imu()
+    for i in range(9):
+        msg.orientation_covariance[i] = -1
+    
+    while not rospy.is_shutdown():
+       
+        msg.header.stamp = rospy.Time.now()
+        #        rad_to_deg = 180/pi
+
+        #getting linear_accleration
+        #converts G's to m/s^2 as per ros spec
+        accel = mpu9250.readAccel()
+        ax =  ( accel['x']  )/9.8
+        ay =  ( accel['y']  )/9.8
+        az =  ( accel['z']  )/9.8
+
+        #getting angular velocity
+        # gyro is set to deg/s to rad/s as per ros spec
+        gyro = mpu9250.readGyro()
+        gx =  ( gyro['x'] )*deg_to_rad
+        gy =  ( gyro['y'] )*deg_to_rad
+        gz =  ( gyro['z'] )*deg_to_rad
+
+        #getting quaternion
+        '''
+        x = math.sin(gy)*math.sin(gz)*math.cos(gx)+math.cos(gy)*math.cos(gz)*math.sin(gx)
+        y = math.sin(gy)*math.cos(gz)*math.cos(gx)+math.cos(gy)*math.sin(gz)*math.sin(gx)
+        z = math.cos(gy)*math.sin(gz)*math.cos(gx)-math.sin(gy)*math.cos(gz)*math.sin(gx)
+        w = math.cos(gy)*math.cos(gz)*math.cos(gx)-math.sin(gy)*math.sin(gz)*math.sin(gx)
+        '''
+        x=0
+        y=0
+        z=0
+        w=0
+        
+        
+        #setting av
+        msg.angular_velocity = Vector3(gx, gy, gz)
+
+        #setting la
+        msg.linear_acceleration = Vector3(ax, ay, az)
+
+        #setting quate
+	msg.orientation = Quaternion(x, y, z, w)
+
+        
+        rospy.loginfo(msg)
+        pub.publish(msg)
+        rate.sleep()
+
+if __name__ == '__main__':
+    try:
+        talker()
+    except rospy.ROSInterruptException:
+        pass
